@@ -11,9 +11,6 @@ import java.util.Optional;
 public interface tarjetaRepository extends JpaRepository<Tarjeta, Long> {
     Optional<Tarjeta> findByUsuarioId(Long usuarioId);
 
-    // Saber si el usuario ya tiene tarjeta
-
-    // Verificar si ya existe una tarjeta con ese número de serie
     boolean existsByNumeroSerie(String numeroSerie);
 
     // Tarjeta de un usuario filtrada por estado
