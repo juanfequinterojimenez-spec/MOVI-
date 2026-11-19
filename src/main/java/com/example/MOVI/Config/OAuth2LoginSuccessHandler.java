@@ -91,12 +91,11 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         );
 
         String targetUrl =
-                "moviplus://login-success?token=" +
+                "movi://auth-success?token=" +
                         URLEncoder.encode(
                                 authResponse.token(),
                                 StandardCharsets.UTF_8
                         );
-
 
         response.sendRedirect(targetUrl);
     }
