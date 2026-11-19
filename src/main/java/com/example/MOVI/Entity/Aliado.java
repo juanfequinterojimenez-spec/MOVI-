@@ -1,6 +1,7 @@
 package com.example.MOVI.Entity;
 
 import com.example.MOVI.Enum.categoriaAliado;
+import com.example.MOVI.Enum.EstadoAliado;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -45,6 +46,13 @@ public class Aliado {
 
     @Column(name = "logo_url")
     private String logoUrl;
+
+    // Estado de aprobación del administrador. Los aliados existentes antes de
+    // esta migración quedan como APROBADO por defecto (ver @Builder.Default).
+    @Enumerated(EnumType.STRING)
+    @Column(name = "estado", nullable = false)
+    @Builder.Default
+    private EstadoAliado estado = EstadoAliado.APROBADO;
 
 
     @OneToMany(mappedBy = "aliado", cascade = CascadeType.ALL, orphanRemoval = true)

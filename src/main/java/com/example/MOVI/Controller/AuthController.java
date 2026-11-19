@@ -54,7 +54,7 @@ public class AuthController {
 
     // CONSULTAR PERFIL
     @GetMapping("/perfil")
-    @PreAuthorize("hasRole('PASAJERO')")
+    @PreAuthorize("hasAnyRole('PASAJERO','ALIADO','ADMINISTRADOR')")
     public ResponseEntity<usuarioResponseDTO> perfil(
             Authentication authentication) {
 

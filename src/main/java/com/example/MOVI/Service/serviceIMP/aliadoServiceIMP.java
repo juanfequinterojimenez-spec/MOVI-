@@ -11,6 +11,7 @@ import com.example.MOVI.Entity.Recompensa;
 import com.example.MOVI.Entity.Usuario;
 import com.example.MOVI.Enum.Rol;
 import com.example.MOVI.Enum.categoriaAliado;
+import com.example.MOVI.Enum.EstadoAliado;
 import com.example.MOVI.Exception.BusinessRuleException;
 import com.example.MOVI.Exception.ResourceNotFoundException;
 import com.example.MOVI.Repository.aliadoRepository;
@@ -127,6 +128,9 @@ public class aliadoServiceIMP implements aliadoService {
                 .CategoriaAliado(categoriaEnum)
                 .correoContacto(correo)
                 .logoUrl(logoUrl)
+                // Las marcas que se autorregistran quedan pendientes de aprobación
+                // del administrador antes de poder publicar ofertas.
+                .estado(EstadoAliado.PENDIENTE)
                 .build();
 
         Aliado aliadoGuardado = aliadoRepository.save(nuevoAliado);

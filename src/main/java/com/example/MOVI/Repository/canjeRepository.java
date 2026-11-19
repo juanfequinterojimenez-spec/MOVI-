@@ -19,4 +19,7 @@ public interface canjeRepository extends JpaRepository<Canje, Long> {
 
     // 🆕 Retorna una página filtrando por usuario y estado
     Page<Canje> findByUsuario_IdAndEstadoOrderByFechaCanjeDesc(Long usuarioId, EstadoCanje estado, Pageable pageable);
+
+    // Usado por el panel de administración para "canjes realizados"
+    long countByEstado(EstadoCanje estado);
 }

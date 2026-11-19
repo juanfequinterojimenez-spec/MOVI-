@@ -43,6 +43,12 @@ public class Usuario {
     @Column(name = "rol", nullable = false)
     private Rol rol = Rol.PASAJERO;
 
+    // Bandera de bloqueo administrativo. Si es false, el JwtAuthenticationFilter
+    // rechaza la petición con 403 aunque el token sea válido.
+    @Builder.Default
+    @Column(name = "activo", nullable = false)
+    private Boolean activo = true;
+
 }
 
 
