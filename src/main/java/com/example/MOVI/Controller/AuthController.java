@@ -10,7 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-
+import org.springframework.security.core.Authentication;
+import com.example.MOVI.Config.UsuarioAutenticado;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -52,13 +53,16 @@ public class AuthController {
 
 
     // CONSULTAR PERFIL
-    @GetMapping("/perfil/{usuarioId}")
+    @GetMapping("/perfil")
     @PreAuthorize("hasRole('PASAJERO')")
     public ResponseEntity<usuarioResponseDTO> perfil(
-            @PathVariable Long usuarioId) {
+            Authentication authentication) {
+
+        UsuarioAutenticado usuario =
+                (UsuarioAutenticado) authentication.getDetails();
 
         usuarioResponseDTO response =
-                authService.perfil(usuarioId);
+                authService.perfil(usuario.idUsuario());
 
         return ResponseEntity.ok(response);
     }
