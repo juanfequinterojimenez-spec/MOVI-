@@ -1,4 +1,3 @@
-
 package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.Config.JwtService;
@@ -258,4 +257,26 @@ public usuarioResponseDTO perfil(Long usuarioId) {
 
     return usuarioResponseDTO.desde(usuario);
    }
+
+
+    @Override
+    @Transactional
+    public usuarioResponseDTO actualizarFotoPerfil(Long usuarioId, MultipartFile foto) {
+        if (foto == null || foto.isEmpty()) {
+            throw new BusinessRuleException("Selecciona una fotografía");
+        }
+        if (foto.getSize() > 5L * 1024 * 1024) {
+            throw new BusinessRuleException("La fotografía debe pesar menos de 5 MB");
+        }
+        String tipo = foto.getContentType();
+        if (tipo == null || !(tipo.equals("image/jpeg") || tipo.equals("image/png") || tipo.equals("image/webp"))) {
+            throw new BusinessRuleException("Formato no permitido. Utiliza JPG, PNG o WEBP");
+        }
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        String url = supabaseStorageService.subirArchivo(foto, "avatares/" + usuario.getId());
+        usuario.setFotoPerfilURL(url);
+        usuarioRepository.save(usuario);
+        return usuarioResponseDTO.desde(usuario);
+    }
 }

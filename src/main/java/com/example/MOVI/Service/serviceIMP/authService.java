@@ -29,5 +29,5 @@ public interface authService {
 
 
 
+    usuarioResponseDTO actualizarFotoPerfil(Long usuarioId, MultipartFile foto);
 }
-
