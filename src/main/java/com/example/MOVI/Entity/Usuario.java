@@ -1,5 +1,6 @@
 package com.example.MOVI.Entity;
 
+import com.example.MOVI.Enum.EstadoAliado;
 import com.example.MOVI.Enum.Rol;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -45,7 +46,6 @@ public class Usuario {
 
     // Bandera de bloqueo administrativo. Si es false, el JwtAuthenticationFilter
     // rechaza la petición con 403 aunque el token sea válido.
-    @Builder.Default
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
 
