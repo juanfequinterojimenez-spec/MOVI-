@@ -36,8 +36,8 @@ public class aliadoServiceIMP implements aliadoService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-     @Override
-     @Transactional
+    @Override
+    @Transactional
     public Recompensa publicarOferta(String correoAliado, recompensaRequestDTO dto, MultipartFile imagen) {
         Aliado aliado = obtenerAliadoPorCorreo(correoAliado);
 
@@ -55,7 +55,7 @@ public class aliadoServiceIMP implements aliadoService {
                 .stockDisponible(dto.stockDisponible())
                 .imagenUrl(urlImagenOferta) // <-- Guardamos la URL generada
                 .aliado(aliado)
-                .activa(true)
+                .activa(false) // Nueva publicación espera aprobación del administrador
                 .build();
 
         // 4. Guardar y retornar
@@ -192,5 +192,4 @@ public class aliadoServiceIMP implements aliadoService {
                 .orElseThrow(() -> new ResourceNotFoundException("No se ha configurado el perfil de la marca para este usuario"));
     }
 }
-
 

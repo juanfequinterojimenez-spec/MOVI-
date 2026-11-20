@@ -10,8 +10,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 
 import java.util.Optional;
-
 public interface canjeRepository extends JpaRepository<Canje, Long> {
+
+    long countByRecompensa_Aliado_IdAndEstadoAndFechaEntregaGreaterThanEqualAndFechaEntregaLessThan(
+            Long aliadoId, EstadoCanje estado, java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
 
     Optional<Canje> findByCodigoComprobante(String codigoComprobante);
     // 🆕 Retorna una página de canjes ordenados por fecha descendente
@@ -23,3 +25,4 @@ public interface canjeRepository extends JpaRepository<Canje, Long> {
     // Usado por el panel de administración para "canjes realizados"
     long countByEstado(EstadoCanje estado);
 }
+

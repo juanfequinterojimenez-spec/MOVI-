@@ -46,6 +46,9 @@ public class Canje {
     @Column(name = "estado", nullable = false)
     private EstadoCanje estado = EstadoCanje.PENDIENTE;
 
+    @Column(name = "fecha_entrega")
+    private LocalDateTime fechaEntrega;
+
     @Column(name = "fecha_vencimiento")
     private LocalDateTime fechaVencimiento;
 

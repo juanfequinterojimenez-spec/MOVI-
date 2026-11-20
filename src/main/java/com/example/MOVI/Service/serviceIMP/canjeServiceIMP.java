@@ -121,6 +121,7 @@ public class canjeServiceIMP implements canjeService {
 
         // 6. Marcar el cupón como UTILIZADO
         canje.setEstado(EstadoCanje.UTILIZADO);
+        canje.setFechaEntrega(LocalDateTime.now());
         Canje canjeActualizado = canjeRepository.save(canje);
 
         return CanjeResponseDto.desde(canjeActualizado);
