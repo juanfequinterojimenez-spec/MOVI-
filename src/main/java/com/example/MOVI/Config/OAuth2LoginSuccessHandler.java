@@ -2,7 +2,6 @@ package com.example.MOVI.Config;
 
 import com.example.MOVI.DTO.ResponseDTO.authResponse;
 import com.example.MOVI.Service.serviceIMP.authService;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -12,91 +11,68 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-
+import java.util.Locale;
 
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
-
-
     private final authService authService;
 
     @Override
-    public void onAuthenticationSuccess(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            Authentication authentication)
-            throws IOException, ServletException {
-
-        OAuth2AuthenticationToken oauthToken =
-                (OAuth2AuthenticationToken) authentication;
-
-        String proveedor =
-                oauthToken.getAuthorizedClientRegistrationId();
-
-        OAuth2User oauthUser =
-                (OAuth2User) authentication.getPrincipal();
-
-        String email = oauthUser.getAttribute("email");
-
-        if (email == null) {
-            email = oauthUser.getAttribute("preferred_username");
+    public void onAuthenticationSuccess(HttpServletRequest request,
+                                        HttpServletResponse response,
+                                        Authentication authentication) throws IOException {
+        if (!(authentication instanceof OAuth2AuthenticationToken token)) {
+            throw new BadCredentialsException("Autenticación OAuth2 no válida");
         }
-
-        if (email == null) {
-            email = oauthUser.getAttribute("userPrincipalName");
-        }
-
-        String nombre = oauthUser.getAttribute("name");
-
+        String proveedor = token.getAuthorizedClientRegistrationId().toLowerCase(Locale.ROOT);
+        OAuth2User user = token.getPrincipal();
         String subject;
+        String email = primeroNoVacio(
+            user.getAttribute("email"),
+            user.getAttribute("preferred_username"),
+            user.getAttribute("userPrincipalName")
+        );
+        String nombre = primeroNoVacio(user.getAttribute("name"), email);
 
         if ("google".equals(proveedor)) {
-
-            subject = oauthUser.getAttribute("sub");
-
-            Boolean verified =
-                    oauthUser.getAttribute("email_verified");
-
-            if (!Boolean.TRUE.equals(verified)) {
-                throw new BadCredentialsException(
-                        "El correo de Google no está verificado"
-                );
+            subject = user.getAttribute("sub");
+            if (!Boolean.TRUE.equals(user.getAttribute("email_verified"))) {
+                throw new BadCredentialsException("Correo Google no verificado");
             }
-
         } else if ("microsoft".equals(proveedor)) {
-
-            String oid = oauthUser.getAttribute("oid");
-            String tid = oauthUser.getAttribute("tid");
-
-            subject = tid != null && oid != null
-                    ? tid + ":" + oid
-                    : oauthUser.getAttribute("sub");
-
+            String tid = user.getAttribute("tid");
+            String oid = user.getAttribute("oid");
+            String sub = user.getAttribute("sub");
+            if (tid == null || tid.isBlank()) {
+                throw new BadCredentialsException("Falta tenant Microsoft");
+            }
+            // OID + TID identifican usuarios corporativos/educativos; SUB es alternativa personal.
+            subject = tid + ":" + (oid != null && !oid.isBlank() ? oid : sub);
         } else {
-            throw new BadCredentialsException(
-                    "Proveedor no permitido"
-            );
+            throw new BadCredentialsException("Proveedor OAuth2 no permitido");
         }
+        if (subject == null || subject.isBlank() || email == null || email.isBlank()) {
+            throw new BadCredentialsException("El proveedor no suministró una identidad y correo válidos");
+        }
+        // IMPORTANTE: email/preferred_username no acreditan beneficio educativo o laboral.
+        // authService.loginOAuth2 debe preservar su protección de cuentas existentes.
+        authResponse resultado = authService.loginOAuth2(proveedor, subject, email, nombre);
 
-        authResponse authResponse = authService.loginOAuth2(
-                proveedor,
-                subject,
-                email,
-                nombre
-        );
+        // Compatibilidad con el actual deep-link Android. Cambiar por código de un solo uso
+        // antes de producción para no exponer JWT en un URI que pueden interceptar otras apps.
+        response.setHeader("Cache-Control", "no-store");
+        response.sendRedirect("movi://auth-success?token=" +
+            URLEncoder.encode(resultado.token(), StandardCharsets.UTF_8));
+    }
 
-        String targetUrl =
-                "movi://auth-success?token=" +
-                        URLEncoder.encode(
-                                authResponse.token(),
-                                StandardCharsets.UTF_8
-                        );
-
-        response.sendRedirect(targetUrl);
+    private static String primeroNoVacio(String... valores) {
+        for (String valor : valores) {
+            if (valor != null && !valor.isBlank()) return valor.trim();
+        }
+        return null;
     }
 }
