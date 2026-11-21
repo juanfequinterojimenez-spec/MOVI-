@@ -18,33 +18,45 @@ public class AdminDataInitializer implements CommandLineRunner {
     private final usuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${admin.default.email}")
+    @Value("${admin.default.email:admin@movi.com}")
     private String correoAdmin;
 
-    @Value("${admin.default.password}")
+    @Value("${admin.default.password:}")
     private String passwordAdmin;
 
     @Override
     public void run(String... args) {
 
-        if (!usuarioRepository.existsByEmail(correoAdmin)) {
-
-            Usuario admin = Usuario.builder()
-                    .email(correoAdmin)
-                    .password(passwordEncoder.encode(passwordAdmin))
-                    .rol(Rol.ADMINISTRADOR)
-                    .documento("0000000000")
-                    .tipoDocumento("ADMIN")
-                    .nombreCompleto("Administrador Sistema")
-                    .puntos(0)
-                    .build();
-
-            usuarioRepository.save(admin);
-
-            log.info(">> Administrador por defecto creado exitosamente con el correo: {}", correoAdmin);
-
-        } else {
-            log.info(">> El administrador ya se encuentra registrado en el sistema.");
+        // Si el administrador ya existe, no modificarlo.
+        if (usuarioRepository.existsByEmail(correoAdmin)) {
+            log.info("El administrador ya está registrado.");
+            return;
         }
+
+        // Sin contraseña configurada, no crear
+        // un administrador inseguro.
+        if (passwordAdmin == null || passwordAdmin.isBlank()) {
+            log.warn(
+                    "No se creó el administrador: falta ADMIN_PASSWORD."
+            );
+            return;
+        }
+
+        Usuario admin = Usuario.builder()
+                .email(correoAdmin)
+                .password(passwordEncoder.encode(passwordAdmin))
+                .rol(Rol.ADMINISTRADOR)
+                .documento("0000000000")
+                .tipoDocumento("ADMIN")
+                .nombreCompleto("Administrador Sistema")
+                .puntos(0)
+                .build();
+
+        usuarioRepository.save(admin);
+
+        log.info(
+                "Administrador creado correctamente: {}",
+                correoAdmin
+        );
     }
 }
