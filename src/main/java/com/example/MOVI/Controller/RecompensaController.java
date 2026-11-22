@@ -24,7 +24,7 @@ public class RecompensaController {
             @PathVariable Long idAliado
     ) {
         return ResponseEntity.ok(
-                recompensaService.listarOfertasPorAliado(idAliado)
+                recompensaService.listarPorAliado(idAliado)
         );
     }
 
