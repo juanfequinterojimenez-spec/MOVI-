@@ -1,5 +1,6 @@
 package com.example.MOVI.Controller;
 
+import com.example.MOVI.DTO.ResponseDTO.OfertaResponseDTO;
 import com.example.MOVI.Entity.Recompensa;
 import com.example.MOVI.Service.serviceIMP.recompensaService;
 import lombok.AllArgsConstructor;
@@ -16,26 +17,28 @@ public class RecompensaController {
 
     private final recompensaService recompensaService;
 
-
-    // LISTAR RECOMPENSAS POR ALIADO
+    // Recompensas de un aliado
     @GetMapping("/aliado/{idAliado}")
     @PreAuthorize("hasRole('PASAJERO') or hasRole('ALIADO')")
-    public ResponseEntity<List<Recompensa>> listarPorAliado(
-            @PathVariable Long idAliado) {
-
-        List<Recompensa> recompensas =
-                recompensaService.listarPorAliado(idAliado);
-
-        return ResponseEntity.ok(recompensas);
+    public ResponseEntity<List<OfertaResponseDTO>> listarPorAliado(
+            @PathVariable Long idAliado
+    ) {
+        return ResponseEntity.ok(
+                recompensaService.listarOfertasPorAliado(idAliado)
+        );
     }
 
+    // Catálogo de beneficios para pasajeros
     @GetMapping("/ofertas")
     @PreAuthorize("hasRole('PASAJERO')")
-    public ResponseEntity<List<Recompensa>> verOfertas(
-            @RequestParam(name = "categoria", required = false) String categoria) {
-
-        List<Recompensa> catalogo = recompensaService.obtenerCatalogo(categoria);
-        return ResponseEntity.ok(catalogo);
+    public ResponseEntity<List<OfertaResponseDTO>> verOfertas(
+            @RequestParam(
+                    name = "categoria",
+                    required = false
+            ) String categoria
+    ) {
+        return ResponseEntity.ok(
+                recompensaService.obtenerCatalogoOfertas(categoria)
+        );
     }
-
 }

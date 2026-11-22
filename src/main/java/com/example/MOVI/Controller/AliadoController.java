@@ -1,10 +1,7 @@
 package com.example.MOVI.Controller;
 
 
-import com.example.MOVI.DTO.ResponseDTO.AliadoRegistroDTO;
-import com.example.MOVI.DTO.ResponseDTO.AliadoResponseDTO;
-import com.example.MOVI.DTO.ResponseDTO.PerfilAliadoDto;
-import com.example.MOVI.DTO.ResponseDTO.recompensaRequestDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
 import com.example.MOVI.Entity.Recompensa;
 import com.example.MOVI.Enum.categoriaAliado;
 import com.example.MOVI.Service.serviceIMP.aliadoService;
@@ -29,13 +26,17 @@ import java.util.List;
     private final aliadoService aliadoService;
     private final recompensaService recompensaService;
 
-
     @GetMapping("/catalogo")
     @PreAuthorize("hasRole('PASAJERO')")
-    public ResponseEntity<List<Recompensa>> verCatalogo(
-            @RequestParam(name = "categoria", required = false) String categoria) {
+    public ResponseEntity<List<OfertaResponseDTO>> verCatalogo(
+            @RequestParam(
+                    name = "categoria",
+                    required = false
+            ) String categoria
+    ) {
+        List<OfertaResponseDTO> catalogo =
+                recompensaService.obtenerCatalogoOfertas(categoria);
 
-        List<Recompensa> catalogo = recompensaService.obtenerCatalogo(categoria);
         return ResponseEntity.ok(catalogo);
     }
 

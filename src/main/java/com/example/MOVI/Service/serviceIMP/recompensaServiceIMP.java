@@ -7,6 +7,7 @@ import com.example.MOVI.Exception.BusinessRuleException;
 import com.example.MOVI.Exception.ResourceNotFoundException;
 import com.example.MOVI.Repository.aliadoRepository;
 import com.example.MOVI.Repository.recompensaRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +22,10 @@ public class recompensaServiceIMP implements recompensaService {
     private final recompensaRepository recompensaRepository;
     private final aliadoRepository aliadoRepository;
 
+    // Listar las recompensas asociadas a un aliado
     @Override
     @Transactional(readOnly = true)
-    public List<Recompensa> listarPorAliado(Long idAliado) {
+    public List<OfertaResponseDTO> listarPorAliado(Long idAliado) {
 
         if (idAliado == null || idAliado <= 0) {
             throw new BusinessRuleException(
@@ -32,57 +34,66 @@ public class recompensaServiceIMP implements recompensaService {
         }
 
         aliadoRepository.findById(idAliado)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Aliado no encontrado con id " + idAliado
-                ));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Aliado no encontrado con id " + idAliado
+                        )
+                );
 
-        return recompensaRepository.findByAliado_Id(idAliado);
+        return recompensaRepository.findByAliado_Id(idAliado)
+                .stream()
+                .map(this::convertirAOferta)
+                .toList();
     }
 
+    // Consultar recompensas activas con filtro opcional
     @Override
     @Transactional(readOnly = true)
-    public List<Recompensa> obtenerCatalogo(String filtroCategoria) {
-
-        if (filtroCategoria == null ||
-                filtroCategoria.isBlank()) {
-            return recompensaRepository.findByActivaTrue();
-        }
-
-        try {
-            categoriaAliado categoriaEnum =
-                    categoriaAliado.valueOf(
-                            filtroCategoria.trim()
-                                    .toUpperCase(Locale.ROOT)
-                    );
-
-            return recompensaRepository
-                    .findByActivaTrueAndAliado_CategoriaAliado(
-                            categoriaEnum
-                    );
-
-        } catch (IllegalArgumentException e) {
-            throw new BusinessRuleException(
-                    "Categoría de búsqueda inválida"
-            );
-        }
-    }
-
-    @Transactional(readOnly = true)
-    public List<OfertaResponseDTO> obtenerCatalogoOfertas(
+    public List<OfertaResponseDTO> obtenerCatalogoOferta(
             String filtroCategoria
     ) {
 
-        List<Recompensa> recompensas =
-                obtenerCatalogo(filtroCategoria);
+        List<Recompensa> recompensas;
+
+        if (filtroCategoria == null || filtroCategoria.isBlank()) {
+            recompensas = recompensaRepository.findByActivaTrue();
+        } else {
+            try {
+                categoriaAliado categoriaEnum =
+                        categoriaAliado.valueOf(
+                                filtroCategoria.trim()
+                                        .toUpperCase(Locale.ROOT)
+                        );
+
+                recompensas =
+                        recompensaRepository
+                                .findByActivaTrueAndAliado_CategoriaAliado(
+                                        categoriaEnum
+                                );
+
+            } catch (IllegalArgumentException e) {
+                throw new BusinessRuleException(
+                        "Categoría de búsqueda inválida"
+                );
+            }
+        }
 
         return recompensas.stream()
                 .map(this::convertirAOferta)
                 .toList();
     }
 
-    private OfertaResponseDTO convertirAOferta(
-            Recompensa recompensa
+    // Alias para el endpoint /ofertas
+    @Override
+    @Transactional(readOnly = true)
+    public List<OfertaResponseDTO> obtenerCatalogoOfertas(
+            String filtroCategoria
     ) {
+        return obtenerCatalogoOferta(filtroCategoria);
+    }
+
+    // Conversión de entidad JPA a DTO
+    private OfertaResponseDTO convertirAOferta(Recompensa recompensa) {
 
         OfertaResponseDTO.AliadoResumenDTO aliado =
                 new OfertaResponseDTO.AliadoResumenDTO(
