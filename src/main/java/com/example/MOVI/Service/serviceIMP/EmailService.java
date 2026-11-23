@@ -1,83 +1,360 @@
 package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.DTO.ResponseDTO.ComprobanteEmailDTO;
-import com.example.MOVI.Entity.Canje;
-import jakarta.mail.internet.MimeMessage;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 
+import tools.jackson.databind.json.JsonMapper;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
     private final ComprobantePdfService pdfService;
     private final QrGeneratorService qrGeneratorService;
+    private final JsonMapper jsonMapper;
+
+    private final HttpClient httpClient =
+            HttpClient.newHttpClient();
+
+    @Value("${BREVO_API_KEY}")
+    private String apiKey;
+
+    @Value("${BREVO_SENDER_EMAIL}")
+    private String correoRemitente;
+
+    @Value("${BREVO_SENDER_NAME:MOVI+}")
+    private String nombreRemitente;
+
+    private static final String BREVO_URL =
+            "https://api.brevo.com/v3/smtp/email";
+
+    // ==========================================
+    // ENVIAR COMPROBANTE DE CANJE
+    // ==========================================
 
     @Async
-    public void enviarComprobanteCanje(ComprobanteEmailDTO datos) {
+    public void enviarComprobanteCanje(
+            ComprobanteEmailDTO datos
+    ) {
+
         try {
-            byte[] qrBytes = qrGeneratorService.generarQrPng(datos.codigoComprobante(), 220, 220);
-            byte[] pdfBytes = pdfService.generarComprobanteCanje(datos);
 
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            // 1. Generar código QR
+            byte[] qrBytes =
+                    qrGeneratorService.generarQrPng(
+                            datos.codigoComprobante(),
+                            220,
+                            220
+                    );
 
-            helper.setTo(datos.correoDestino());
-            helper.setSubject("Tu cupón QR MOVI+ (" + datos.codigoComprobante() + ")");
+            // 2. Generar comprobante PDF
+            byte[] pdfBytes =
+                    pdfService.generarComprobanteCanje(
+                            datos
+                    );
 
-            String vencimientoTexto = (datos.fechaVencimiento() != null)
-                    ? datos.fechaVencimiento().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
-                    : "Sin fecha límite";
+            // 3. Preparar fecha de vencimiento
+            String vencimientoTexto =
+                    datos.fechaVencimiento() != null
+                            ? datos.fechaVencimiento().format(
+                            DateTimeFormatter.ofPattern(
+                                    "dd/MM/yyyy HH:mm"
+                            )
+                    )
+                            : "Sin fecha límite";
 
+            // 4. Proteger el contenido HTML
+            String nombre = escapar(
+                    datos.nombrePasajero()
+            );
+
+            String recompensa = escapar(
+                    datos.tituloRecompensa()
+            );
+
+            String aliado = escapar(
+                    datos.nombreAliado()
+            );
+
+            String codigo = escapar(
+                    datos.codigoComprobante()
+            );
+
+            // 5. Construir correo HTML
             String cuerpoHtml = """
-                    <div style="font-family: Arial, sans-serif; color: #333; max-width: 480px; margin: auto; border: 1px solid #e0e0e0; border-radius: 10px; padding: 20px; text-align: center;">
-                        <h2 style="color: #1976d2; margin-bottom: 8px;">¡Canje exitoso en MOVI+!</h2>
-                        <p>Hola <strong>%s</strong>, has redimido <strong>%d puntos</strong> por:</p>
-                        <p style="font-size: 16px; color: #00796b; margin: 4px 0;"><strong>%s</strong></p>
-                        <p style="font-size: 13px; color: #555; margin-top: 0;">Comercio aliado: <strong>%s</strong></p>
-                        <p style="margin-top: 16px;">Muestra este código QR en el establecimiento para reclamar tu beneficio:</p>
-                        <div style="margin: 16px 0;">
-                            <img src="cid:qrComprobante" alt="Código QR de Canje" style="width: 200px; height: 200px;" />
-                        </div>
-                        <p style="font-size: 18px; font-family: monospace; background: #f0f4f8; padding: 10px; border-radius: 6px; letter-spacing: 2px;">
-                            <strong>%s</strong>
-                        </p>
-                        <p style="font-size: 12px; color: #d32f2f;">Válido hasta: <strong>%s</strong></p>
-                        <p style="font-size: 12px; color: #777;">También encontrarás este comprobante adjunto en formato PDF.</p>
+                <html>
+                <body style="
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f5fa;
+                    padding: 24px;
+                ">
+
+                <div style="
+                    max-width: 500px;
+                    margin: auto;
+                    background: white;
+                    border-radius: 18px;
+                    padding: 28px;
+                    text-align: center;
+                ">
+
+                    <h1 style="
+                        color: #e8161b;
+                        margin-bottom: 8px;
+                    ">
+                        MOVI+
+                    </h1>
+
+                    <h2 style="color: #252545;">
+                        ¡Canje exitoso!
+                    </h2>
+
+                    <p>Hola <strong>%s</strong></p>
+
+                    <p>
+                        Has redimido
+                        <strong>%s puntos</strong>
+                        por la siguiente recompensa:
+                    </p>
+
+                    <h3 style="color: #e8161b;">
+                        %s
+                    </h3>
+
+                    <p>
+                        Comercio aliado:
+                        <strong>%s</strong>
+                    </p>
+
+                    <div style="
+                        background: #f4f5fa;
+                        border-radius: 12px;
+                        padding: 18px;
+                        margin: 20px 0;
+                    ">
+
+                        <p>Tu código de canje es:</p>
+
+                        <h2 style="
+                            color: #252545;
+                            letter-spacing: 3px;
+                        ">
+                            %s
+                        </h2>
+
                     </div>
-                    """.formatted(
-                    datos.nombrePasajero(),
+
+                    <p>
+                        Encontrarás tu código QR y el
+                        comprobante PDF adjuntos a este correo.
+                    </p>
+
+                    <p>
+                        Presenta el código QR en el comercio
+                        aliado para reclamar tu beneficio.
+                    </p>
+
+                    <p style="
+                        color: #d32f2f;
+                        font-size: 13px;
+                    ">
+                        Válido hasta:
+                        <strong>%s</strong>
+                    </p>
+
+                    <hr style="border: 1px solid #eeeeee;">
+
+                    <p style="
+                        color: #888888;
+                        font-size: 12px;
+                    ">
+                        Gracias por utilizar MOVI+.
+                    </p>
+
+                </div>
+
+                </body>
+                </html>
+                """.formatted(
+                    nombre,
                     datos.puntosGastados(),
-                    datos.tituloRecompensa(),
-                    datos.nombreAliado(),
+                    recompensa,
+                    aliado,
+                    codigo,
+                    escapar(vencimientoTexto)
+            );
+
+            // 6. Convertir archivos a Base64
+            String qrBase64 =
+                    Base64.getEncoder()
+                            .encodeToString(qrBytes);
+
+            String pdfBase64 =
+                    Base64.getEncoder()
+                            .encodeToString(pdfBytes);
+
+            // 7. Generar nombre seguro para archivos
+            String codigoArchivo =
+                    datos.codigoComprobante().replaceAll(
+                            "[^a-zA-Z0-9_-]",
+                            "_"
+                    );
+
+            // 8. Preparar adjuntos
+            List<Map<String, String>> adjuntos = List.of(
+
+                    Map.of(
+                            "name",
+                            "QR_" + codigoArchivo + ".png",
+                            "content",
+                            qrBase64
+                    ),
+
+                    Map.of(
+                            "name",
+                            "Comprobante_" +
+                                    codigoArchivo + ".pdf",
+                            "content",
+                            pdfBase64
+                    )
+            );
+
+            // 9. Construir solicitud Brevo
+            Map<String, Object> mensaje = Map.of(
+
+                    "sender",
+                    Map.of(
+                            "name", nombreRemitente,
+                            "email", correoRemitente
+                    ),
+
+                    "to",
+                    List.of(
+                            Map.of(
+                                    "email",
+                                    datos.correoDestino()
+                            )
+                    ),
+
+                    "subject",
+                    "Tu cupón QR MOVI+ (" +
+                            datos.codigoComprobante() + ")",
+
+                    "htmlContent",
+                    cuerpoHtml,
+
+                    "attachment",
+                    adjuntos
+            );
+
+            // 10. Convertir solicitud a JSON
+            String json =
+                    jsonMapper.writeValueAsString(
+                            mensaje
+                    );
+
+            // 11. Crear solicitud HTTP
+            HttpRequest request =
+                    HttpRequest.newBuilder()
+                            .uri(URI.create(BREVO_URL))
+                            .timeout(Duration.ofSeconds(30))
+                            .header(
+                                    "api-key",
+                                    apiKey
+                            )
+                            .header(
+                                    "Content-Type",
+                                    "application/json"
+                            )
+                            .header(
+                                    "Accept",
+                                    "application/json"
+                            )
+                            .POST(
+                                    HttpRequest.BodyPublishers
+                                            .ofString(
+                                                    json,
+                                                    StandardCharsets.UTF_8
+                                            )
+                            )
+                            .build();
+
+            // 12. Enviar a Brevo
+            HttpResponse<String> respuesta =
+                    httpClient.send(
+                            request,
+                            HttpResponse.BodyHandlers
+                                    .ofString()
+                    );
+
+            // 13. Validar respuesta
+            int estado = respuesta.statusCode();
+
+            if (estado >= 200 && estado < 300) {
+
+                log.info(
+                        "Brevo aceptó comprobante de canje {} para {}",
+                        datos.codigoComprobante(),
+                        datos.correoDestino()
+                );
+
+            } else {
+
+                log.error(
+                        "Brevo rechazó comprobante {}. HTTP {}: {}",
+                        datos.codigoComprobante(),
+                        estado,
+                        respuesta.body()
+                );
+
+            }
+
+        } catch (InterruptedException e) {
+
+            Thread.currentThread().interrupt();
+
+            log.error(
+                    "Envío de comprobante interrumpido: {}",
                     datos.codigoComprobante(),
-                    vencimientoTexto
+                    e
             );
 
-            helper.setText(cuerpoHtml, true);
-
-            // 1. Imagen QR incrustada dentro del HTML del correo (cid:qrComprobante)
-            helper.addInline("qrComprobante", new ByteArrayResource(qrBytes), "image/png");
-
-            // 2. PDF adjunto con el QR y el detalle completo
-            helper.addAttachment(
-                    "Comprobante_" + datos.codigoComprobante() + ".pdf",
-                    new ByteArrayResource(pdfBytes)
-            );
-
-            mailSender.send(message);
-            log.info("Correo con QR y PDF enviado correctamente a: {}", datos.correoDestino());
         } catch (Exception e) {
-            log.error("Error enviando correo del comprobante {}: {}", datos.codigoComprobante(), e.getMessage());
+
+            log.error(
+                    "Error enviando comprobante de canje {}",
+                    datos.codigoComprobante(),
+                    e
+            );
         }
     }
+
+    private String escapar(String valor) {
+
+        if (valor == null) {
+            return "";
+        }
+
+        return HtmlUtils.htmlEscape(valor);
+    }
 }
+
