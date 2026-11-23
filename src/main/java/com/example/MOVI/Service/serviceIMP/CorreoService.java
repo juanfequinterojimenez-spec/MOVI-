@@ -1,7 +1,7 @@
 package com.example.MOVI.Service.serviceIMP;
 
 import lombok.RequiredArgsConstructor;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -18,7 +18,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CorreoService {
 
-    private final ObjectMapper objectMapper;
+    private final JsonMapper jsonMapper;
 
     @Value("${BREVO_API_KEY}")
     private String apiKey;
@@ -66,8 +66,7 @@ public class CorreoService {
                     "textContent", contenido
             );
 
-            String json = objectMapper
-                    .writeValueAsString(mensaje);
+            String json = jsonMapper.writeValueAsString(mensaje);
 
             HttpRequest solicitud = HttpRequest.newBuilder()
                     .uri(URI.create(
