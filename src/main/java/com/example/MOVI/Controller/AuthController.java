@@ -1,10 +1,10 @@
 package com.example.MOVI.Controller;
 
+import com.example.MOVI.Config.JwtService;
 import com.example.MOVI.Config.UsuarioAutenticado;
-import com.example.MOVI.DTO.ResponseDTO.authResponse;
-import com.example.MOVI.DTO.ResponseDTO.loginDTO;
-import com.example.MOVI.DTO.ResponseDTO.registerRequest;
-import com.example.MOVI.DTO.ResponseDTO.usuarioResponseDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
+import com.example.MOVI.Entity.Usuario;
+import com.example.MOVI.Service.serviceIMP.VerificacionCorreoService;
 import com.example.MOVI.Service.serviceIMP.authService;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,15 +22,36 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
+
+    private final VerificacionCorreoService verificacionCorreoService;
+    private final JwtService jwtService;
     private final authService authService;
 
     @PostMapping(value = "/register", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<authResponse> registrar(
-            @Parameter(description = "Datos de registro", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE))
-            @RequestPart("request") @Valid registerRequest request,
-            @RequestPart(value = "fotoPerfil", required = false) MultipartFile fotoDePerfil) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrar(request, fotoDePerfil));
+    public ResponseEntity<RegistroPendienteResponse> registrar(
+            @Parameter(
+                    description = "Datos de registro",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE
+                    )
+            )
+            @RequestPart("request")
+            @Valid registerRequest request,
+
+            @RequestPart(
+                    value = "fotoPerfil",
+                    required = false
+            )
+            MultipartFile fotoDePerfil
+    ) {
+        RegistroPendienteResponse respuesta =
+                authService.registrar(request, fotoDePerfil);
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(respuesta);
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<authResponse> login(@Valid @RequestBody loginDTO request) {
@@ -57,4 +78,36 @@ public class AuthController {
         }
         return usuario.idUsuario();
     }
+
+
+    @PostMapping("/verificar-codigo")
+    public ResponseEntity<authResponse> verificarCodigo(
+            @Valid @RequestBody VerificarCorreoRequest request) {
+
+        Usuario usuario = verificacionCorreoService.verificar(
+                request.correoElectronico(),
+                request.codigo()
+        );
+
+        String token = jwtService.generarToken(usuario);
+
+        return ResponseEntity.ok(
+                new authResponse(
+                        token,
+                        usuarioResponseDTO.desde(usuario)
+                )
+        );
+    }
+
+    @PostMapping("/reenviar-codigo")
+    public ResponseEntity<Void> reenviarCodigo(
+            @Valid @RequestBody ReenviarCodigoRequest request) {
+
+        verificacionCorreoService.reenviar(
+                request.correoElectronico()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
 }

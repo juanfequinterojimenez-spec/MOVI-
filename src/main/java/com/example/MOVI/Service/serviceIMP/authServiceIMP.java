@@ -1,10 +1,7 @@
 package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.Config.JwtService;
-import com.example.MOVI.DTO.ResponseDTO.authResponse;
-import com.example.MOVI.DTO.ResponseDTO.loginDTO;
-import com.example.MOVI.DTO.ResponseDTO.registerRequest;
-import com.example.MOVI.DTO.ResponseDTO.usuarioResponseDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
 import com.example.MOVI.Entity.IdentidadExterna;
 import com.example.MOVI.Entity.Usuario;
 import com.example.MOVI.Enum.ProveedorIdentidad;
@@ -36,53 +33,125 @@ public class authServiceIMP implements authService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final SupabaseStorageService supabaseStorageService;
+    private final VerificacionCorreoService verificacionCorreoService;
 
     //poner foto de perfil
     @Override
     @Transactional
-    public authResponse registrar(registerRequest request, MultipartFile fotoDePerfil) {
+    public RegistroPendienteResponse registrar(
+            registerRequest request,
+            MultipartFile fotoDePerfil
+    ) {
+
+        // 1. Validar que el registro tenga datos
         if (request == null) {
-            throw new BusinessRuleException("Los datos del registro son obligatorios");
+            throw new BusinessRuleException(
+                    "Los datos del registro son obligatorios"
+            );
         }
 
-        // ... (tus validaciones previas de campos obligatorios, email y documento) ...
+        if (request.nombreCompleto() == null ||
+                request.nombreCompleto().isBlank() ||
+                request.correoElectronico() == null ||
+                request.correoElectronico().isBlank() ||
+                request.contrasena() == null ||
+                request.contrasena().isBlank() ||
+                request.documentoIdentidad() == null ||
+                request.documentoIdentidad().isBlank() ||
+                request.tipoDocumento() == null ||
+                request.tipoDocumento().isBlank()) {
 
-        String email = request.correoElectronico().trim().toLowerCase();
+            throw new BusinessRuleException(
+                    "Todos los campos obligatorios deben estar completos"
+            );
+        }
+
+        // 2. Normalizar los datos
+        String email = request.correoElectronico()
+                .trim()
+                .toLowerCase(java.util.Locale.ROOT);
+
         String documento = request.documentoIdentidad().trim();
-        String tipoDocumento = request.tipoDocumento().trim().toUpperCase();
 
-        if (!tipoDocumento.matches("^(CEDULA_CIUDADANIA|CEDULA_EXTRANJERIA|PPT|PEP|PASAPORTE)$")) {
-            throw new BusinessRuleException("Tipo de documento inválido. Opciones permitidas: CEDULA_CIUDADANIA, CEDULA_EXTRANJERIA, PPT, PEP, PASAPORTE");
+        String tipoDocumento = request.tipoDocumento()
+                .trim()
+                .toUpperCase(java.util.Locale.ROOT);
+
+        // 3. Validar el formato del correo
+        if (!email.matches(
+                "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        )) {
+            throw new BusinessRuleException(
+                    "Ingresa un correo electrónico válido"
+            );
         }
 
+        // 4. Validar el tipo de documento
+        if (!tipoDocumento.matches(
+                "^(CEDULA_CIUDADANIA|CEDULA_EXTRANJERIA|PPT|PEP|PASAPORTE)$"
+        )) {
+            throw new BusinessRuleException(
+                    "Tipo de documento inválido"
+            );
+        }
+
+        // 5. Comprobar que el correo no esté registrado
         if (usuarioRepository.existsByEmail(email)) {
-            throw new DuplicateResourceException("El correo electrónico ya está registrado");
+            throw new DuplicateResourceException(
+                    "El correo electrónico ya está registrado"
+            );
         }
 
+        // 6. Comprobar que el documento no esté registrado
         if (usuarioRepository.existsByDocumento(documento)) {
-            throw new DuplicateResourceException("El documento de identidad ya está registrado");
+            throw new DuplicateResourceException(
+                    "El documento de identidad ya está registrado"
+            );
         }
 
-        // Subir foto de perfil a Supabase Storage si el usuario la adjuntó
+        // 7. Subir fotografía opcional a Supabase
         String urlFotoPerfil = null;
+
         if (fotoDePerfil != null && !fotoDePerfil.isEmpty()) {
-            urlFotoPerfil = supabaseStorageService.subirArchivo(fotoDePerfil, "avatares");
+
+            urlFotoPerfil = supabaseStorageService.subirArchivo(
+                    fotoDePerfil,
+                    "avatares"
+            );
         }
 
+        // 8. Crear el usuario
         Usuario usuario = new Usuario();
-        usuario.setNombreCompleto(request.nombreCompleto().trim());
+
+        usuario.setNombreCompleto(
+                request.nombreCompleto().trim()
+        );
+
         usuario.setDocumento(documento);
         usuario.setTipoDocumento(tipoDocumento);
         usuario.setEmail(email);
-        usuario.setPassword(passwordEncoder.encode(request.contrasena()));
+
+        // Contraseña encriptada
+        usuario.setPassword(
+                passwordEncoder.encode(request.contrasena())
+        );
+
         usuario.setPuntos(0);
         usuario.setRol(Rol.PASAJERO);
-        usuario.setFotoPerfilURL(urlFotoPerfil); // <-- Guardar la URL generada por Supabase
+        usuario.setActivo(true);
+        usuario.setFotoPerfilURL(urlFotoPerfil);
+
+        // IMPORTANTE: todavía no está verificado
+        usuario.setCorreoVerificado(false);
 
         Usuario guardado = usuarioRepository.save(usuario);
-        String token = jwtService.generarToken(guardado);
 
-        return new authResponse(token, usuarioResponseDTO.desde(guardado));
+        verificacionCorreoService.enviarCodigo(guardado);
+
+        return new RegistroPendienteResponse(
+                "Te enviamos un código de verificación",
+                guardado.getEmail()
+        );
     }
 
 

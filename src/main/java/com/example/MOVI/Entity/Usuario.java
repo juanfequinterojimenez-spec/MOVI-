@@ -49,6 +49,10 @@ public class Usuario {
     @Column(name = "activo", nullable = false)
     private Boolean activo = true;
 
+    @Builder.Default
+    @Column(name = "correo_verificado", nullable = false)
+    private Boolean correoVerificado = true;
+
 }
 
 

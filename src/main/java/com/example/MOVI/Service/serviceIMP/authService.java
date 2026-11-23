@@ -1,9 +1,6 @@
 package com.example.MOVI.Service.serviceIMP;
 
-import com.example.MOVI.DTO.ResponseDTO.authResponse;
-import com.example.MOVI.DTO.ResponseDTO.loginDTO;
-import com.example.MOVI.DTO.ResponseDTO.registerRequest;
-import com.example.MOVI.DTO.ResponseDTO.usuarioResponseDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -11,7 +8,7 @@ import java.util.List;
 public interface authService {
 
         // Registro tradicional
-        authResponse registrar(registerRequest request, MultipartFile fotoDePerfil);
+        RegistroPendienteResponse registrar(registerRequest request, MultipartFile fotoDePerfil);
 
         // Inicio de sesión tradicional
         authResponse login(loginDTO request);

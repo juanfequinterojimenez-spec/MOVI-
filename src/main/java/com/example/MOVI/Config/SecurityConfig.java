@@ -100,6 +100,8 @@ public class SecurityConfig {
                                 HttpMethod.POST,
                                 "/api/auth/register",
                                 "/api/auth/login",
+                                "/api/auth/verificar-codigo",
+                                "/api/auth/reenviar-codigo",
                                 "/api/aliados/registro"
                         ).permitAll()
 
