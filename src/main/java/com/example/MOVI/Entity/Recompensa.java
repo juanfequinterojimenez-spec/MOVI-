@@ -37,9 +37,9 @@ public class Recompensa {
 
 
     @Column(name = "imagen_url")
-    private String imagenURL;
+    private String imagenUrl;
 
-    @Column(name = "activa")
+    @Column(name = "activa", nullable = false)
     @Builder.Default
-    private Boolean activa = true;
+    private Boolean activa = false;
 }

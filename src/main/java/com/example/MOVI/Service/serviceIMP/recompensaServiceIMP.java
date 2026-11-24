@@ -136,7 +136,7 @@ public class recompensaServiceIMP implements recompensaService {
                         aliadoEntidad.getNombreAliado(),
 
                         // Logo cargado por el aliado
-                        aliadoEntidad.getLogoURL()
+                        aliadoEntidad.getLogoUrl()
                 );
 
         return new OfertaResponseDTO(
@@ -152,7 +152,7 @@ public class recompensaServiceIMP implements recompensaService {
                 recompensa.getCostoPuntos(),
 
                 // Imagen del cupón o producto
-                recompensa.getImagenURL(),
+                recompensa.getImagenUrl(),
 
                 recompensa.getActiva(),
 

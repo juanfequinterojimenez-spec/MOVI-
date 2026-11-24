@@ -113,7 +113,7 @@ public class aliadoServiceIMP implements aliadoService {
                 )
                 .costoPuntos(dto.costoPuntos())
                 .stockDisponible(dto.stockDisponible())
-                .imagenURL(urlImagenOferta)
+                .imagenUrl(urlImagenOferta)
                 .aliado(aliado)
 
                 // Requiere aprobación administrativa
@@ -230,7 +230,7 @@ public class aliadoServiceIMP implements aliadoService {
                 .nombreAliado(dto.nombreMarca().trim())
                 .CategoriaAliado(categoriaEnum)
                 .correoContacto(correo)
-                .logoURL(logoUrl)
+                .logoUrl(logoUrl)
                 .estado(EstadoAliado.PENDIENTE)
                 .build();
 
@@ -324,7 +324,7 @@ public class aliadoServiceIMP implements aliadoService {
                     );
 
             // Respeta el nombre del atributo logoUrl
-            aliado.setLogoURL(urlLogo);
+            aliado.setLogoUrl(urlLogo);
         }
 
         aliadoRepository.save(aliado);
