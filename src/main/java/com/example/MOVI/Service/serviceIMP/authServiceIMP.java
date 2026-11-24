@@ -1,11 +1,7 @@
 package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.Config.JwtService;
-import com.example.MOVI.DTO.ResponseDTO.RegistroPendienteResponse;
-import com.example.MOVI.DTO.ResponseDTO.authResponse;
-import com.example.MOVI.DTO.ResponseDTO.loginDTO;
-import com.example.MOVI.DTO.ResponseDTO.registerRequest;
-import com.example.MOVI.DTO.ResponseDTO.usuarioResponseDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
 import com.example.MOVI.Entity.IdentidadExterna;
 import com.example.MOVI.Entity.Usuario;
 import com.example.MOVI.Enum.ProveedorIdentidad;
@@ -216,7 +212,7 @@ public class authServiceIMP implements authService {
 
     @Override
     @Transactional
-    public authResponse loginOAuth2(String proveedor, String subject, String email, String nombre, boolean correoVerificado) {
+    public OAuth2Resultado loginOAuth2(String proveedor, String subject, String email, String nombre, boolean correoVerificado) {
         if (
                 proveedor == null ||
                         proveedor.isBlank() ||
@@ -333,18 +329,38 @@ public class authServiceIMP implements authService {
         }
 
 
-        // No entregar un JWT a una cuenta inactiva o sin verificar.
+        // No permitir acceso a cuentas bloqueadas
         if (!Boolean.TRUE.equals(usuario.getActivo())) {
-            throw new BusinessRuleException("Tu cuenta se encuentra deshabilitada");
-        }
-        if (!Boolean.TRUE.equals(usuario.getCorreoVerificado())) {
             throw new BusinessRuleException(
-                    "No se pudo confirmar la verificación del correo externo"
+                    "Tu cuenta se encuentra deshabilitada"
             );
         }
 
+// Si necesita verificar el correo, enviar código
+        if (!Boolean.TRUE.equals(
+                usuario.getCorreoVerificado()
+        )) {
+
+            verificacionCorreoService.enviarCodigo(usuario);
+
+            // No generar JWT todavía
+            return OAuth2Resultado.pendiente(
+                    usuario.getEmail()
+            );
+        }
+
+// Cuenta verificada: generar JWT normalmente
         String token = jwtService.generarToken(usuario);
-        return new authResponse(token, usuarioResponseDTO.desde(usuario));
+
+        authResponse respuesta = new authResponse(
+                token,
+                usuarioResponseDTO.desde(usuario)
+        );
+
+        return OAuth2Resultado.autenticado(
+                usuario.getEmail(),
+                respuesta
+        );
     }
 
     // ==========================================

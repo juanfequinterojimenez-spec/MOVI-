@@ -1,10 +1,6 @@
 package com.example.MOVI.Service.serviceIMP;
 
-import com.example.MOVI.DTO.ResponseDTO.RegistroPendienteResponse;
-import com.example.MOVI.DTO.ResponseDTO.authResponse;
-import com.example.MOVI.DTO.ResponseDTO.loginDTO;
-import com.example.MOVI.DTO.ResponseDTO.registerRequest;
-import com.example.MOVI.DTO.ResponseDTO.usuarioResponseDTO;
+import com.example.MOVI.DTO.ResponseDTO.*;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface authService {
@@ -16,7 +12,7 @@ public interface authService {
 
         authResponse login(loginDTO request);
 
-        authResponse loginOAuth2(
+         OAuth2Resultado loginOAuth2(
                 String proveedor,
                 String subject,
                 String email,

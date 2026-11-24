@@ -1,5 +1,7 @@
+
 package com.example.MOVI.Config;
 
+import com.example.MOVI.DTO.ResponseDTO.OAuth2Resultado;
 import com.example.MOVI.DTO.ResponseDTO.authResponse;
 import com.example.MOVI.Service.serviceIMP.authService;
 
@@ -59,7 +61,6 @@ public class OAuth2LoginSuccessHandler
                 email
         );
 
-        // Por defecto no asumimos que el correo esté verificado.
         boolean correoVerificado = false;
 
         // ==========================================
@@ -82,9 +83,6 @@ public class OAuth2LoginSuccessHandler
                 );
             }
 
-            // Aceptamos directamente Gmail.
-            // Para dominios externos se requiere comprobar
-            // las garantías adicionales del proveedor.
             String dominioAlojado = user.getAttribute("hd");
 
             correoVerificado = email != null &&
@@ -97,8 +95,8 @@ public class OAuth2LoginSuccessHandler
                                                     !dominioAlojado.isBlank() &&
                                                     email.toLowerCase(Locale.ROOT)
                                                             .endsWith(
-                                                                    "@" + dominioAlojado
-                                                                            .toLowerCase(Locale.ROOT)
+                                                                    "@" +
+                                                                            dominioAlojado.toLowerCase(Locale.ROOT)
                                                             )
                                     )
                     );
@@ -134,12 +132,12 @@ public class OAuth2LoginSuccessHandler
 
             subject = tid + ":" + identificador;
 
-            // Microsoft no garantiza la propiedad del
-            // buzón por el simple hecho de entregar
-            // preferred_username o email.
+            // Microsoft no garantiza por sí solo
+            // la propiedad del buzón.
             correoVerificado = false;
 
         } else {
+
             throw new BadCredentialsException(
                     "Proveedor OAuth2 no permitido"
             );
@@ -163,7 +161,7 @@ public class OAuth2LoginSuccessHandler
         // AUTENTICAR EN MOVI+
         // ==========================================
 
-        authResponse resultado = authService.loginOAuth2(
+        OAuth2Resultado resultado = authService.loginOAuth2(
                 proveedor,
                 subject,
                 email,
@@ -171,19 +169,61 @@ public class OAuth2LoginSuccessHandler
                 correoVerificado
         );
 
-        // Redirección hacia Android MOVI+
-        response.setHeader("Cache-Control", "no-store");
+        response.setHeader(
+                "Cache-Control",
+                "no-store"
+        );
+
+        // ==========================================
+        // REQUIERE VERIFICACIÓN POR CORREO
+        // ==========================================
+
+        if (resultado.requiereVerificacion()) {
+
+            response.sendRedirect(
+                    "movi://auth-verify?email=" +
+                            URLEncoder.encode(
+                                    resultado.correoElectronico(),
+                                    StandardCharsets.UTF_8
+                            )
+            );
+
+            return;
+        }
+
+        // ==========================================
+        // SESIÓN AUTENTICADA
+        // ==========================================
+
+        authResponse autenticacion =
+                resultado.autenticacion();
+
+        if (autenticacion == null ||
+                autenticacion.token() == null ||
+                autenticacion.token().isBlank()) {
+
+            throw new BadCredentialsException(
+                    "No se pudo generar la sesión de MOVI+"
+            );
+        }
 
         response.sendRedirect(
                 "movi://auth-success?token=" +
                         URLEncoder.encode(
-                                resultado.token(),
+                                autenticacion.token(),
                                 StandardCharsets.UTF_8
                         )
         );
-    }
 
-    private static String primeroNoVacio(String... valores) {
+    } // ESTA LLAVE FALTABA
+
+    // ==========================================
+    // MÉTODO AUXILIAR
+    // ==========================================
+
+    private static String primeroNoVacio(
+            String... valores
+    ) {
 
         for (String valor : valores) {
 

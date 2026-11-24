@@ -73,7 +73,10 @@ public class VerificacionCorreoService {
         );
     }
 
-    @Transactional
+
+    @Transactional(
+            noRollbackFor = BusinessRuleException.class
+    )
     public Usuario verificar(String email, String codigo) {
 
         Usuario usuario = usuarios

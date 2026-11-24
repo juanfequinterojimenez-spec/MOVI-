@@ -1,7 +1,10 @@
+
 package com.example.MOVI.Service.serviceIMP;
 
 import lombok.RequiredArgsConstructor;
+
 import tools.jackson.databind.json.JsonMapper;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -13,10 +16,17 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
 
 @Service
 @RequiredArgsConstructor
 public class CorreoService {
+
+    private static final Logger log =
+            Logger.getLogger(CorreoService.class.getName());
+
+    private static final URI BREVO_URL =
+            URI.create("https://api.brevo.com/v3/smtp/email");
 
     private final JsonMapper jsonMapper;
 
@@ -34,6 +44,32 @@ public class CorreoService {
             .build();
 
     public void enviarCodigo(String destino, String codigo) {
+
+        if (destino == null || destino.isBlank()) {
+            throw new IllegalArgumentException(
+                    "El correo de destino es obligatorio"
+            );
+        }
+
+        if (codigo == null || !codigo.matches("\\d{6}")) {
+            throw new IllegalArgumentException(
+                    "El código de verificación no es válido"
+            );
+        }
+
+        if (apiKey == null || apiKey.isBlank()) {
+            throw new IllegalStateException(
+                    "BREVO_API_KEY no está configurada"
+            );
+        }
+
+        if (correoRemitente == null ||
+                correoRemitente.isBlank()) {
+
+            throw new IllegalStateException(
+                    "BREVO_SENDER_EMAIL no está configurado"
+            );
+        }
 
         String contenido = """
                 Hola,
@@ -53,25 +89,29 @@ public class CorreoService {
                 """.formatted(codigo);
 
         try {
+
             Map<String, Object> mensaje = Map.of(
+
                     "sender", Map.of(
                             "name", nombreRemitente,
                             "email", correoRemitente
                     ),
+
                     "to", List.of(
-                            Map.of("email", destino)
+                            Map.of("email", destino.trim())
                     ),
+
                     "subject",
                     "MOVI+ | Código de verificación",
+
                     "textContent", contenido
             );
 
-            String json = jsonMapper.writeValueAsString(mensaje);
+            String json =
+                    jsonMapper.writeValueAsString(mensaje);
 
             HttpRequest solicitud = HttpRequest.newBuilder()
-                    .uri(URI.create(
-                            "https://api.brevo.com/v3/smtp/email"
-                    ))
+                    .uri(BREVO_URL)
                     .timeout(Duration.ofSeconds(20))
                     .header("accept", "application/json")
                     .header("api-key", apiKey)
@@ -93,16 +133,28 @@ public class CorreoService {
                             HttpResponse.BodyHandlers.ofString()
                     );
 
-            if (respuesta.statusCode() < 200 ||
-                    respuesta.statusCode() >= 300) {
+            int estado = respuesta.statusCode();
+
+            if (estado < 200 || estado >= 300) {
+
+                log.warning(
+                        "Brevo rechazó el correo. HTTP " +
+                                estado
+                );
 
                 throw new IllegalStateException(
-                        "Brevo rechazó el envío. HTTP "
-                                + respuesta.statusCode()
+                        "Brevo rechazó el envío. HTTP " +
+                                estado
                 );
             }
 
+            log.info(
+                    "Brevo aceptó la solicitud de envío. HTTP " +
+                            estado
+            );
+
         } catch (InterruptedException e) {
+
             Thread.currentThread().interrupt();
 
             throw new IllegalStateException(
@@ -110,7 +162,17 @@ public class CorreoService {
                     e
             );
 
+        } catch (IllegalStateException e) {
+
+            throw e;
+
         } catch (Exception e) {
+
+            log.severe(
+                    "Error de comunicación con Brevo: " +
+                            e.getClass().getSimpleName()
+            );
+
             throw new IllegalStateException(
                     "No se pudo enviar el correo de verificación",
                     e
