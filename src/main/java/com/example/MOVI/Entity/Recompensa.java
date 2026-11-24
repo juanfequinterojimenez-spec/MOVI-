@@ -37,7 +37,7 @@ public class Recompensa {
 
 
     @Column(name = "imagen_url")
-    private String imagenUrl;
+    private String imagenURL;
 
     @Column(name = "activa")
     @Builder.Default

@@ -1,6 +1,8 @@
+
 package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.DTO.ResponseDTO.OfertaResponseDTO;
+import com.example.MOVI.Entity.Aliado;
 import com.example.MOVI.Entity.Recompensa;
 import com.example.MOVI.Enum.categoriaAliado;
 import com.example.MOVI.Exception.BusinessRuleException;
@@ -9,6 +11,7 @@ import com.example.MOVI.Repository.aliadoRepository;
 import com.example.MOVI.Repository.recompensaRepository;
 
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,31 +25,42 @@ public class recompensaServiceIMP implements recompensaService {
     private final recompensaRepository recompensaRepository;
     private final aliadoRepository aliadoRepository;
 
-    // Listar las recompensas asociadas a un aliado
+    // ==========================================
+    // 1. RECOMPENSAS DE UN ALIADO
+    // ==========================================
+
     @Override
     @Transactional(readOnly = true)
-    public List<OfertaResponseDTO> listarPorAliado(Long idAliado) {
+    public List<OfertaResponseDTO> listarPorAliado(
+            Long idAliado
+    ) {
 
         if (idAliado == null || idAliado <= 0) {
+
             throw new BusinessRuleException(
-                    "El ID del aliado no es válido"
+                    "El ID del aliado no es válido."
             );
         }
 
         aliadoRepository.findById(idAliado)
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
-                                "Aliado no encontrado con id " + idAliado
+                                "Aliado no encontrado con ID " +
+                                        idAliado
                         )
                 );
 
-        return recompensaRepository.findByAliado_Id(idAliado)
+        return recompensaRepository
+                .findByAliado_Id(idAliado)
                 .stream()
                 .map(this::convertirAOferta)
                 .toList();
     }
 
-    // Consultar recompensas activas con filtro opcional
+    // ==========================================
+    // 2. CATÁLOGO DE OFERTAS ACTIVAS
+    // ==========================================
+
     @Override
     @Transactional(readOnly = true)
     public List<OfertaResponseDTO> obtenerCatalogoOferta(
@@ -55,59 +69,94 @@ public class recompensaServiceIMP implements recompensaService {
 
         List<Recompensa> recompensas;
 
-        if (filtroCategoria == null || filtroCategoria.isBlank()) {
-            recompensas = recompensaRepository.findByActivaTrue();
-        } else {
-            try {
-                categoriaAliado categoriaEnum =
-                        categoriaAliado.valueOf(
-                                filtroCategoria.trim()
-                                        .toUpperCase(Locale.ROOT)
-                        );
+        if (filtroCategoria == null ||
+                filtroCategoria.isBlank()) {
 
-                recompensas =
-                        recompensaRepository
-                                .findByActivaTrueAndAliado_CategoriaAliado(
-                                        categoriaEnum
-                                );
+            recompensas =
+                    recompensaRepository.findByActivaTrue();
+
+        } else {
+
+            categoriaAliado categoriaEnum;
+
+            try {
+
+                categoriaEnum = categoriaAliado.valueOf(
+                        filtroCategoria
+                                .trim()
+                                .toUpperCase(Locale.ROOT)
+                );
 
             } catch (IllegalArgumentException e) {
+
                 throw new BusinessRuleException(
-                        "Categoría de búsqueda inválida"
+                        "Categoría de búsqueda inválida."
                 );
             }
+
+            recompensas = recompensaRepository
+                    .findByActivaTrueAndAliado_CategoriaAliado(
+                            categoriaEnum
+                    );
         }
 
-        return recompensas.stream()
+        return recompensas
+                .stream()
                 .map(this::convertirAOferta)
                 .toList();
     }
 
-    // Alias para el endpoint /ofertas
+    // ==========================================
+    // 3. ALIAS PARA /api/recompensas/ofertas
+    // ==========================================
+
     @Override
     @Transactional(readOnly = true)
     public List<OfertaResponseDTO> obtenerCatalogoOfertas(
             String filtroCategoria
     ) {
+
         return obtenerCatalogoOferta(filtroCategoria);
     }
 
-    // Conversión de entidad JPA a DTO
-    private OfertaResponseDTO convertirAOferta(Recompensa recompensa) {
+    // ==========================================
+    // 4. CONVERTIR RECOMPENSA A DTO
+    // ==========================================
+
+    private OfertaResponseDTO convertirAOferta(
+            Recompensa recompensa
+    ) {
+
+        Aliado aliadoEntidad = recompensa.getAliado();
 
         OfertaResponseDTO.AliadoResumenDTO aliado =
                 new OfertaResponseDTO.AliadoResumenDTO(
-                        recompensa.getAliado().getNombreAliado()
+
+                        // Nombre de la marca
+                        aliadoEntidad.getNombreAliado(),
+
+                        // Logo cargado por el aliado
+                        aliadoEntidad.getLogoURL()
                 );
 
         return new OfertaResponseDTO(
+
                 recompensa.getIdRecompensa(),
+
                 recompensa.getTitulo(),
+
                 recompensa.getDescripcionRecompensa(),
+
                 recompensa.getStockDisponible(),
+
                 recompensa.getCostoPuntos(),
-                recompensa.getImagenUrl(),
+
+                // Imagen del cupón o producto
+                recompensa.getImagenURL(),
+
                 recompensa.getActiva(),
+
+                // Marca y logo
                 aliado
         );
     }

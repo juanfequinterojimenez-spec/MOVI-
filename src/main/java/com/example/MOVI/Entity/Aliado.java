@@ -44,8 +44,8 @@ public class Aliado {
     private String correoContacto;
 
 
-    @Column(name = "logo_url")
-    private String logoUrl;
+    @Column(name = "logo_url", length = 1000)
+    private String logoURL;
 
     // Estado de aprobación del administrador. Los aliados existentes antes de
     // esta migración quedan como APROBADO por defecto (ver @Builder.Default).

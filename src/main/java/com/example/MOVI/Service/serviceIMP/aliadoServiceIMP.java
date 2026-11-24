@@ -1,5 +1,5 @@
-package com.example.MOVI.Service.serviceIMP;
 
+package com.example.MOVI.Service.serviceIMP;
 
 import com.example.MOVI.Config.JwtService;
 import com.example.MOVI.DTO.ResponseDTO.AliadoRegistroDTO;
@@ -17,13 +17,16 @@ import com.example.MOVI.Exception.ResourceNotFoundException;
 import com.example.MOVI.Repository.aliadoRepository;
 import com.example.MOVI.Repository.recompensaRepository;
 import com.example.MOVI.Repository.usuarioRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -36,160 +39,360 @@ public class aliadoServiceIMP implements aliadoService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    // ==========================================
+    // 1. PUBLICAR RECOMPENSA CON IMAGEN
+    // ==========================================
+
     @Override
     @Transactional
-    public Recompensa publicarOferta(String correoAliado, recompensaRequestDTO dto, MultipartFile imagen) {
+    public Recompensa publicarOferta(
+            String correoAliado,
+            recompensaRequestDTO dto,
+            MultipartFile imagen
+    ) {
+
         Aliado aliado = obtenerAliadoPorCorreo(correoAliado);
 
-        // 2. Subir la imagen de la oferta a Supabase Storage (carpeta "ofertas")
-        String urlImagenOferta = null;
-        if (imagen != null && !imagen.isEmpty()) {
-            urlImagenOferta = supabaseStorageService.subirArchivo(imagen, "ofertas");
+        if (dto == null) {
+            throw new BusinessRuleException(
+                    "Los datos de la recompensa son obligatorios."
+            );
         }
 
-        // 3. Crear la entidad Recompensa incluyendo la URL
+        if (dto.titulo() == null ||
+                dto.titulo().isBlank()) {
+
+            throw new BusinessRuleException(
+                    "El título de la recompensa es obligatorio."
+            );
+        }
+
+        if (dto.descripcion() == null ||
+                dto.descripcion().isBlank()) {
+
+            throw new BusinessRuleException(
+                    "La descripción es obligatoria."
+            );
+        }
+
+        if (dto.costoPuntos() == null ||
+                dto.costoPuntos() <= 0) {
+
+            throw new BusinessRuleException(
+                    "Los puntos requeridos deben ser mayores a cero."
+            );
+        }
+
+        if (dto.stockDisponible() != null &&
+                dto.stockDisponible() < 0) {
+
+            throw new BusinessRuleException(
+                    "El stock no puede ser negativo."
+            );
+        }
+
+        // Subir imagen del cupón a Supabase Storage
+        String urlImagenOferta = null;
+
+        if (imagen != null && !imagen.isEmpty()) {
+
+            validarImagen(imagen);
+
+            urlImagenOferta =
+                    supabaseStorageService.subirArchivo(
+                            imagen,
+                            "ofertas"
+                    );
+        }
+
+        // Crear recompensa asociada al aliado
         Recompensa nuevaOferta = Recompensa.builder()
                 .titulo(dto.titulo().trim())
-                .descripcionRecompensa(dto.descripcion().trim())
+                .descripcionRecompensa(
+                        dto.descripcion().trim()
+                )
                 .costoPuntos(dto.costoPuntos())
                 .stockDisponible(dto.stockDisponible())
-                .imagenUrl(urlImagenOferta) // <-- Guardamos la URL generada
+                .imagenURL(urlImagenOferta)
                 .aliado(aliado)
-                .activa(false) // Nueva publicación espera aprobación del administrador
+
+                // Requiere aprobación administrativa
+                .activa(false)
                 .build();
 
-        // 4. Guardar y retornar
         return recompensaRepository.save(nuevaOferta);
     }
 
+    // ==========================================
+    // 2. REGISTRAR ALIADO CON LOGO
+    // ==========================================
+
     @Override
     @Transactional
-    public AliadoResponseDTO registrarAliado(AliadoRegistroDTO dto, MultipartFile logo) {
-        String correo = dto.correo().toLowerCase().trim();
-        // 1. Validar correo corporativo
+    public AliadoResponseDTO registrarAliado(
+            AliadoRegistroDTO dto,
+            MultipartFile logo
+    ) {
+
+        if (dto == null ||
+                dto.correo() == null ||
+                dto.correo().isBlank()) {
+
+            throw new BusinessRuleException(
+                    "El correo corporativo es obligatorio."
+            );
+        }
+
+        String correo = dto.correo()
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
         if (correo.endsWith("@gmail.com") ||
                 correo.endsWith("@hotmail.com") ||
                 correo.endsWith("@yahoo.com") ||
                 correo.endsWith("@outlook.com")) {
 
             throw new BusinessRuleException(
-                    "Los aliados deben registrarse utilizando el correo corporativo de su empresa."
+                    "Los aliados deben registrarse con un " +
+                            "correo corporativo."
             );
         }
 
-        // 2. Verificar correo existente
         if (usuarioRepository.existsByEmail(correo)) {
+
             throw new BusinessRuleException(
-                    "El correo electrónico ya se encuentra registrado."
+                    "El correo ya está registrado."
             );
         }
 
-        // 3. Validar categoría ANTES de guardar
+        if (dto.nombreMarca() == null ||
+                dto.nombreMarca().isBlank()) {
+
+            throw new BusinessRuleException(
+                    "El nombre de la marca es obligatorio."
+            );
+        }
+
+        if (dto.password() == null ||
+                dto.password().isBlank()) {
+
+            throw new BusinessRuleException(
+                    "La contraseña es obligatoria."
+            );
+        }
+
         categoriaAliado categoriaEnum;
 
         try {
+
             categoriaEnum = categoriaAliado.valueOf(
-                    dto.categoria().toUpperCase().trim()
+                    dto.categoria()
+                            .trim()
+                            .toUpperCase(Locale.ROOT)
             );
-        } catch (IllegalArgumentException e) {
+
+        } catch (IllegalArgumentException |
+                 NullPointerException e) {
+
             throw new BusinessRuleException(
-                    "La categoría especificada no es válida."
+                    "La categoría del aliado no es válida."
             );
         }
 
-        // 4. Validar contraseña
-        if (dto.password() == null || dto.password().isBlank()) {
-            throw new BusinessRuleException("La contraseña es obligatoria.");
-        }
-
-        // 5. Subir logo a Supabase
+        // Subir logo del aliado
         String logoUrl = null;
 
         if (logo != null && !logo.isEmpty()) {
+
+            validarImagen(logo);
+
             logoUrl = supabaseStorageService.subirArchivo(
                     logo,
                     "aliados-logos"
             );
         }
 
-        // 6. Crear usuario
+        // Crear usuario asociado al aliado
         Usuario nuevoUsuario = Usuario.builder()
                 .email(correo)
-                .password(passwordEncoder.encode(dto.password()))
+                .password(
+                        passwordEncoder.encode(dto.password())
+                )
                 .rol(Rol.ALIADO)
                 .build();
 
-        Usuario usuarioGuardado = usuarioRepository.save(nuevoUsuario);
+        Usuario usuarioGuardado =
+                usuarioRepository.save(nuevoUsuario);
 
-        // 7. Crear perfil del aliado
+        // Crear perfil de marca
         Aliado nuevoAliado = Aliado.builder()
                 .usuario(usuarioGuardado)
                 .nombreAliado(dto.nombreMarca().trim())
                 .CategoriaAliado(categoriaEnum)
                 .correoContacto(correo)
-                .logoUrl(logoUrl)
-                // Las marcas que se autorregistran quedan pendientes de aprobación
-                // del administrador antes de poder publicar ofertas.
+                .logoURL(logoUrl)
                 .estado(EstadoAliado.PENDIENTE)
                 .build();
 
-        Aliado aliadoGuardado = aliadoRepository.save(nuevoAliado);
+        Aliado aliadoGuardado =
+                aliadoRepository.save(nuevoAliado);
 
-        // 8. Generar JWT
-        String tokenJwt = jwtService.generarToken(usuarioGuardado);
+        String tokenJwt =
+                jwtService.generarToken(usuarioGuardado);
 
-        return AliadoResponseDTO.desde(aliadoGuardado, tokenJwt);
+        return AliadoResponseDTO.desde(
+                aliadoGuardado,
+                tokenJwt
+        );
     }
 
+    // ==========================================
+    // 3. LISTAR PUBLICACIONES DEL ALIADO
+    // ==========================================
 
     @Override
     @Transactional(readOnly = true)
-    public List<Recompensa> obtenerOfertasPorAliado(String correoAliado) {
-        Aliado aliado = obtenerAliadoPorCorreo(correoAliado);
-        return recompensaRepository.findByAliado_Id(aliado.getId());
+    public List<Recompensa> obtenerOfertasPorAliado(
+            String correoAliado
+    ) {
+
+        Aliado aliado =
+                obtenerAliadoPorCorreo(correoAliado);
+
+        return recompensaRepository.findByAliado_Id(
+                aliado.getId()
+        );
     }
+
+    // ==========================================
+    // 4. ACTUALIZAR PERFIL Y LOGO
+    // ==========================================
 
     @Override
     @Transactional
-    public void actualizarPerfil(String correoAliado, PerfilAliadoDto dto, MultipartFile logo) {
-        Usuario usuario = usuarioRepository.findByEmail(correoAliado)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario aliado no encontrado"));
+    public void actualizarPerfil(
+            String correoAliado,
+            PerfilAliadoDto dto,
+            MultipartFile logo
+    ) {
 
-        // 2. Buscar si el usuario ya tiene un perfil de Aliado creado, si no, crear la instancia
-        Aliado aliado = aliadoRepository.findByUsuarioId(usuario.getId())
-                .orElse(new Aliado());
+        Aliado aliado =
+                obtenerAliadoPorCorreo(correoAliado);
 
-        // 3. Aplicar los cambios SOBRE LA INSTANCIA (aliado en minúscula)
-        aliado.setUsuario(usuario);
-        aliado.setNombreAliado(dto.nombreMarca().trim());
+        if (dto == null ||
+                dto.nombreMarca() == null ||
+                dto.nombreMarca().isBlank()) {
 
-        // 4. Convertir y asignar la categoría
-        try {
-            // Asegúrate de que enumCategoria coincida con el nombre exacto de tu Enum
-            categoriaAliado enumCategoria = categoriaAliado.valueOf(dto.categoria().trim().toUpperCase());
-            aliado.setCategoriaAliado(enumCategoria);
-        } catch (IllegalArgumentException e) {
             throw new BusinessRuleException(
-                    "Categoría inválida. Debe ser una de las permitidas (ej. RESTAURANTE, CINE, ROPA, etc.)"
+                    "El nombre de la marca es obligatorio."
             );
         }
 
-        // 5. Opcional: Subir el logo si lo incluyeron (requiere SupabaseStorageService)
-        if (logo != null && !logo.isEmpty()) {
-            // String urlLogo = supabaseStorageService.subirArchivo(logo, "logos-aliados");
-            // aliado.setLogoUrl(urlLogo);
+        aliado.setNombreAliado(
+                dto.nombreMarca().trim()
+        );
+
+        categoriaAliado categoria;
+
+        try {
+
+            categoria = categoriaAliado.valueOf(
+                    dto.categoria()
+                            .trim()
+                            .toUpperCase(Locale.ROOT)
+            );
+
+        } catch (IllegalArgumentException |
+                 NullPointerException e) {
+
+            throw new BusinessRuleException(
+                    "La categoría seleccionada no es válida."
+            );
         }
 
-        // 6. Guardar los cambios en la base de datos
+        aliado.setCategoriaAliado(categoria);
+
+        // Guardar un nuevo logo, si se adjuntó
+        if (logo != null && !logo.isEmpty()) {
+
+            validarImagen(logo);
+
+            String urlLogo =
+                    supabaseStorageService.subirArchivo(
+                            logo,
+                            "aliados-logos"
+                    );
+
+            // Respeta el nombre del atributo logoUrl
+            aliado.setLogoURL(urlLogo);
+        }
+
         aliadoRepository.save(aliado);
     }
 
-    private Aliado obtenerAliadoPorCorreo(String correo) {
-        Usuario usuario = usuarioRepository.findByEmail(correo)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario aliado no encontrado"));
+    // ==========================================
+    // 5. OBTENER ALIADO DESDE SU JWT
+    // ==========================================
 
-        return aliadoRepository.findByUsuarioId(usuario.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("No se ha configurado el perfil de la marca para este usuario"));
+    private Aliado obtenerAliadoPorCorreo(
+            String correo
+    ) {
+
+        if (correo == null || correo.isBlank()) {
+            throw new BusinessRuleException(
+                    "No se pudo identificar al aliado."
+            );
+        }
+
+        Usuario usuario = usuarioRepository
+                .findByEmail(correo.trim())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Usuario aliado no encontrado"
+                        )
+                );
+
+        return aliadoRepository
+                .findByUsuarioId(usuario.getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "No existe un perfil de marca " +
+                                        "para este usuario"
+                        )
+                );
+    }
+
+    // ==========================================
+    // 6. VALIDAR ARCHIVOS DE IMAGEN
+    // ==========================================
+
+    private void validarImagen(
+            MultipartFile imagen
+    ) {
+
+        if (imagen == null || imagen.isEmpty()) {
+            throw new BusinessRuleException(
+                    "La imagen está vacía."
+            );
+        }
+
+        // Máximo 5 MB
+        if (imagen.getSize() > 5L * 1024 * 1024) {
+            throw new BusinessRuleException(
+                    "La imagen no puede superar los 5 MB."
+            );
+        }
+
+        String tipo = imagen.getContentType();
+
+        if (tipo == null ||
+                !(tipo.equals("image/jpeg") ||
+                        tipo.equals("image/png") ||
+                        tipo.equals("image/webp"))) {
+
+            throw new BusinessRuleException(
+                    "Solo se permiten imágenes JPG, PNG o WEBP."
+            );
+        }
     }
 }
-
