@@ -9,15 +9,52 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 public interface tarjetaService {
-    tarjetaResponseDTO vincular(String correoPasajero, tarjetaDTO dto);
+
+    // Vinculación sin fotografía
+    tarjetaResponseDTO vincular(
+            String correoPasajero,
+            tarjetaDTO dto
+    );
+
+    // Registro con evidencia fotográfica
+    tarjetaResponseDTO registrarTarjetaConFoto(
+            String correoPasajero,
+            tarjetaDTO dto,
+            MultipartFile fotoEvidencia
+    );
+
+    // Consultar tarjeta por ID
     Tarjeta obtenerPorId(Long id);
+
+    // Consultar tarjeta de un usuario
     Tarjeta obtenerPorUsuario(Long usuarioId);
+
+    // Listar tarjetas
     List<Tarjeta> listar();
-    Tarjeta cambiarEstado(Long id, estadoTarjeta nuevoEstado);
-    Tarjeta obtenerPorUsuarioYEstado(Long usuarioId, estadoTarjeta estado);
+
+    // Cambiar estado operativo
+    Tarjeta cambiarEstado(
+            Long id,
+            estadoTarjeta nuevoEstado
+    );
+
+    // Consultar por usuario y estado
+    Tarjeta obtenerPorUsuarioYEstado(
+            Long usuarioId,
+            estadoTarjeta estado
+    );
+
+    // Eliminar tarjeta
     void eliminar(Long id);
-    tarjetaResponseDTO registrarTarjetaConFoto(tarjetaDTO dto, MultipartFile fotoEvidencia);
-    void bloquearTarjetaActual(String correoPasajero);
-    tarjetaResponseDTO obtenerTarjetaActiva(String correoPasajero);
+
+    // Bloquear tarjeta actual
+    void bloquearTarjetaActual(
+            String correoPasajero
+    );
+
+    // Consultar tarjeta activa
+    tarjetaResponseDTO obtenerTarjetaActiva(
+            String correoPasajero
+    );
 }
 

@@ -19,6 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.security.Principal;
 import java.util.List;
 
+import static org.springframework.security.authorization.AuthorityReactiveAuthorizationManager.hasRole;
+
 @RestController
 @RequestMapping("/api/tarjetas")
 @AllArgsConstructor
@@ -28,32 +30,39 @@ public class TarjetaController {
 
 
     //vincular tarjeta
-    @PostMapping("/vincular")
-    @PreAuthorize("hasRole('PASAJERO')")
-    public ResponseEntity<tarjetaResponseDTO> vincular(
-            @Valid @RequestBody tarjetaDTO dto,
-            Principal principal) {
-
-        // principal.getName() obtiene el correo del usuario autenticado por JWT/Security
-        String correoPasajero = principal.getName();
-        tarjetaResponseDTO response = tarjetaService.vincular(correoPasajero, dto);
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping(value = "/registrar-con-foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('PASAJERO')")
-    public ResponseEntity<tarjetaResponseDTO> registrarTarjetaConFoto(
-            @RequestPart("dto") @Valid tarjetaDTO dto,
-            @RequestPart("foto") MultipartFile fotoEvidencia) {
+    public ResponseEntity<tarjetaResponseDTO>
+    registrarTarjetaConFoto(
 
-        tarjetaResponseDTO respuesta = tarjetaService.registrarTarjetaConFoto(dto, fotoEvidencia);
-        return ResponseEntity.status(HttpStatus.CREATED).body(respuesta);
+            @RequestPart("dto")
+            @Valid tarjetaDTO dto,
+
+            @RequestPart("foto")
+            MultipartFile fotoEvidencia,
+
+            Authentication authentication
+    ) {
+
+        String correoPasajero = authentication.getName();
+
+        tarjetaResponseDTO respuesta =
+                tarjetaService.registrarTarjetaConFoto(
+                        correoPasajero,
+                        dto,
+                        fotoEvidencia
+                );
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(respuesta);
     }
 
 
 
     //obtener tarjeta id
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Tarjeta> obtenerPorId(
             @PathVariable Long id) {
 
