@@ -213,16 +213,19 @@ public class aliadoServiceIMP implements aliadoService {
         }
 
         // Crear usuario asociado al aliado
+
         Usuario nuevoUsuario = Usuario.builder()
                 .email(correo)
-                .password(
-                        passwordEncoder.encode(dto.password())
-                )
+                .password(passwordEncoder.encode(dto.password()))
                 .rol(Rol.ALIADO)
+                .nombreCompleto(dto.nombreMarca().trim())
+                .puntos(0)
+                .activo(true)
                 .build();
 
         Usuario usuarioGuardado =
                 usuarioRepository.save(nuevoUsuario);
+
 
         // Crear perfil de marca
         Aliado nuevoAliado = Aliado.builder()
