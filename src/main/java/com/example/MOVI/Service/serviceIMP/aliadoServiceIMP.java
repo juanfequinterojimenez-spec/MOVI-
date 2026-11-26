@@ -231,7 +231,7 @@ public class aliadoServiceIMP implements aliadoService {
                 .CategoriaAliado(categoriaEnum)
                 .correoContacto(correo)
                 .logoUrl(logoUrl)
-                .estado(EstadoAliado.PENDIENTE)
+                .estado(EstadoAliado.APROBADO)
                 .build();
 
         Aliado aliadoGuardado =
