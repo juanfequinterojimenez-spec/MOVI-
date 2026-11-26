@@ -1,14 +1,19 @@
+
 package com.example.MOVI.Config;
 
 import com.example.MOVI.Entity.Usuario;
 import com.example.MOVI.Enum.Rol;
 import com.example.MOVI.Repository.usuarioRepository;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
@@ -24,20 +29,82 @@ public class AdminDataInitializer implements CommandLineRunner {
     @Value("${admin.default.password:}")
     private String passwordAdmin;
 
+    @Value("${admin.reset.password:false}")
+    private boolean resetPasswordAdmin;
+
     @Override
     public void run(String... args) {
 
-        // Si el administrador ya existe, no modificarlo.
-        if (usuarioRepository.existsByEmail(correoAdmin)) {
-            log.info("El administrador ya está registrado.");
+        Optional<Usuario> usuarioExistente =
+                usuarioRepository.findByEmail(correoAdmin);
+
+        // ==========================================
+        // ADMINISTRADOR EXISTENTE
+        // ==========================================
+
+        if (usuarioExistente.isPresent()) {
+
+            Usuario admin = usuarioExistente.get();
+
+            // Protección: no modificar un usuario
+            // que no tenga el rol de administrador.
+            if (admin.getRol() != Rol.ADMINISTRADOR) {
+                log.error(
+                        "El correo configurado pertenece a una cuenta que no es administradora."
+                );
+                return;
+            }
+
+            if (!resetPasswordAdmin) {
+                log.info(
+                        "El administrador ya está registrado. No se realizaron cambios."
+                );
+                return;
+            }
+
+            if (passwordAdmin == null || passwordAdmin.isBlank()) {
+                log.error(
+                        "No se pudo restablecer la contraseña: falta ADMIN_DEFAULT_PASSWORD."
+                );
+                return;
+            }
+
+            // Evitar actualizar el hash si ya
+            // corresponde a la nueva contraseña.
+            if (admin.getPassword() != null &&
+                    passwordEncoder.matches(
+                            passwordAdmin,
+                            admin.getPassword()
+                    )) {
+
+                log.info(
+                        "La contraseña del administrador ya está actualizada."
+                );
+                return;
+            }
+
+            // Solo cambiar la contraseña.
+            // Conservar ID, correo, rol y demás datos.
+            admin.setPassword(
+                    passwordEncoder.encode(passwordAdmin)
+            );
+
+            usuarioRepository.save(admin);
+
+            log.info(
+                    "Contraseña del administrador restablecida correctamente."
+            );
+
             return;
         }
 
-        // Sin contraseña configurada, no crear
-        // un administrador inseguro.
+        // ==========================================
+        // CREAR ADMINISTRADOR SI NO EXISTE
+        // ==========================================
+
         if (passwordAdmin == null || passwordAdmin.isBlank()) {
             log.warn(
-                    "No se creó el administrador: falta ADMIN_PASSWORD."
+                    "No se creó el administrador: falta ADMIN_DEFAULT_PASSWORD."
             );
             return;
         }
