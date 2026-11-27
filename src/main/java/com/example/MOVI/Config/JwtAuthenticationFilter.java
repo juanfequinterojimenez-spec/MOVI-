@@ -36,6 +36,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (cabecera != null && cabecera.startsWith("Bearer ")) {
             try {
                 Claims claims = jwtService.leer(cabecera.substring(7));
+                // Los JWT destinados a QR no son credenciales de acceso a la API.
+                if (claims.get("tipo") != null) {
+                    chain.doFilter(request, response);
+                    return;
+                }
                 Long id = ((Number) claims.get("id")).longValue();
 
                 Optional<Usuario> usuarioOpt = pasajeroRepository.findById(id)

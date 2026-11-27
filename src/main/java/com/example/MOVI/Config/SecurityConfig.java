@@ -102,6 +102,8 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/verificar-codigo",
                                 "/api/auth/reenviar-codigo",
+                                "/api/auth/sesion/renovar",
+                                "/api/auth/sesion/revocar",
                                 "/api/aliados/registro"
                         ).permitAll()
 
