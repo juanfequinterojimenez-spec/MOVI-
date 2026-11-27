@@ -136,7 +136,8 @@ public class recompensaServiceIMP implements recompensaService {
                         aliadoEntidad.getNombreAliado(),
 
                         // Logo cargado por el aliado
-                        aliadoEntidad.getLogoUrl()
+                        aliadoEntidad.getLogoUrl(),
+                        aliadoEntidad.getCategoriaAliado() == null ? null : aliadoEntidad.getCategoriaAliado().name()
                 );
 
         return new OfertaResponseDTO(

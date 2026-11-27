@@ -28,7 +28,8 @@ public record OfertaResponseDTO(
             String nombre,
 
             // Logo cargado por el aliado
-            String logoUrl
+            String logoUrl,
+            String categoria
 
     ) {}
 }
