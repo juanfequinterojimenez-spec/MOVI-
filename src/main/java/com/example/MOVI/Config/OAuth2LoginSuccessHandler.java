@@ -150,8 +150,7 @@ public class OAuth2LoginSuccessHandler
 
         if (subject == null ||
                 subject.isBlank() ||
-                email == null ||
-                email.isBlank()) {
+                !formatoCorreoValido(email)) {
 
             throw new BadCredentialsException(
                     "El proveedor no suministró una identidad y correo válidos"
@@ -235,4 +234,23 @@ public class OAuth2LoginSuccessHandler
 
         return null;
     }
+
+
+    private static boolean formatoCorreoValido(String email) {
+
+        if (email == null || email.isBlank()) {
+            return false;
+        }
+
+        String valor = email.trim();
+
+        int arroba = valor.indexOf('@');
+
+        return arroba > 0
+                && arroba == valor.lastIndexOf('@')
+                && arroba < valor.length() - 1
+                && !valor.contains(" ")
+                && valor.substring(arroba + 1).contains(".");
+    }
+
 }
