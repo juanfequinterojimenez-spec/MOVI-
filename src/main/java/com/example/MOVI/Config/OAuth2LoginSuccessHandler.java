@@ -105,38 +105,39 @@ public class OAuth2LoginSuccessHandler
             // MICROSOFT
             // ==========================================
 
-        } else if ("microsoft".equals(proveedor)) {
 
-            String tid = user.getAttribute("tid");
-            String oid = user.getAttribute("oid");
-            String sub = user.getAttribute("sub");
+    } else if ("microsoft".equals(proveedor)) {
+
+        String tid = user.getAttribute("tid");
+        String oid = user.getAttribute("oid");
+        String sub = user.getAttribute("sub");
+
 
             if (tid == null || tid.isBlank()) {
-                throw new BadCredentialsException(
-                        "Falta tenant Microsoft"
-                );
-            }
+            throw new BadCredentialsException(
+                    "Microsoft no proporcionó el identificador del tenant."
+            );
+        }
 
-            String identificador =
-                    oid != null && !oid.isBlank()
-                            ? oid
-                            : sub;
+        String identificador;
 
-            if (identificador == null ||
-                    identificador.isBlank()) {
-
-                throw new BadCredentialsException(
-                        "Falta identificador Microsoft"
-                );
-            }
-
-            subject = tid + ":" + identificador;
-
-            // Microsoft no garantiza por sí solo
-            // la propiedad del buzón.
-            correoVerificado = false;
-
+        if (oid != null && !oid.isBlank()) {
+            identificador = oid;
+        } else if (sub != null && !sub.isBlank()) {
+            identificador = sub;
         } else {
+            throw new BadCredentialsException(
+                    "Microsoft no proporcionó un identificador de usuario."
+            );
+        }
+
+        subject = tid.trim() + ":" + identificador.trim();
+
+        // La identidad Microsoft está autenticada,
+        // pero la titularidad del correo no se
+        // considera verificada automáticamente.
+        correoVerificado = false;
+    } else {
 
             throw new BadCredentialsException(
                     "Proveedor OAuth2 no permitido"
