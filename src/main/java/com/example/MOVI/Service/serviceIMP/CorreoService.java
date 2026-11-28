@@ -179,4 +179,39 @@ public class CorreoService {
             );
         }
     }
+
+    public void enviarCodigoRecuperacion(String destino, String codigo) {
+        if (destino == null || destino.isBlank() || codigo == null || !codigo.matches("\\d{6}")) {
+            throw new IllegalArgumentException("Solicitud de recuperación inválida");
+        }
+        if (apiKey == null || apiKey.isBlank() || correoRemitente == null || correoRemitente.isBlank()) {
+            throw new IllegalStateException("El servicio de correo no está configurado");
+        }
+        String contenido = "MOVI+ - Recuperación de contraseña\n\n" +
+            "Tu código para restablecer la contraseña es: " + codigo + "\n" +
+            "Vence en 10 minutos. Si no lo solicitaste, ignora este mensaje.\n" +
+            "Nunca compartas este código.";
+        try {
+            Map<String,Object> mensaje = Map.of(
+                "sender", Map.of("name", nombreRemitente, "email", correoRemitente),
+                "to", List.of(Map.of("email", destino.trim())),
+                "subject", "MOVI+ | Recuperación de contraseña",
+                "textContent", contenido
+            );
+            HttpRequest solicitud = HttpRequest.newBuilder().uri(BREVO_URL)
+                .timeout(Duration.ofSeconds(20)).header("accept", "application/json")
+                .header("api-key", apiKey).header("content-type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(
+                    jsonMapper.writeValueAsString(mensaje), StandardCharsets.UTF_8)).build();
+            HttpResponse<String> respuesta = cliente.send(solicitud, HttpResponse.BodyHandlers.ofString());
+            if (respuesta.statusCode() < 200 || respuesta.statusCode() >= 300)
+                throw new IllegalStateException("No se pudo enviar el correo de recuperación");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Envío interrumpido", e);
+        } catch (Exception e) {
+            throw new IllegalStateException("No se pudo enviar el correo de recuperación", e);
+        }
+    }
+
 }

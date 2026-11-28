@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface IdentidadExternaRepository
         extends JpaRepository<IdentidadExterna, Long> {
 
+    boolean existsByUsuarioId(Long id);
+
     Optional<IdentidadExterna> findByProveedorAndSubject(
             ProveedorIdentidad proveedor,
             String subject
